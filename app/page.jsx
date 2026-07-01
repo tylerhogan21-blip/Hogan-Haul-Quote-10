@@ -48,10 +48,8 @@ function num(n, digits = 1) {
 }
 
 export default function Home() {
-  const pickupRef = useRef(null);
-  const dumpRef = useRef(null);
-  const pickupAutoRef = useRef(null);
-  const dumpAutoRef = useRef(null);
+  const pickupContainerRef = useRef(null);
+  const dumpContainerRef = useRef(null);
 
   const [form, setForm] = useState(defaults);
   const [ready, setReady] = useState(false);
@@ -96,29 +94,70 @@ export default function Home() {
 
   useEffect(() => {
     if (!mapsReady) return;
-    if (!window.google?.maps?.places) {
-      setMapsError('Google Places did not load. Check Maps JavaScript API and Places API.');
-      return;
+
+    async function setupAutocomplete() {
+      try {
+        if (!window.google?.maps?.importLibrary) {
+          setMapsError('Google Maps did not load correctly.');
+          return;
+        }
+
+        const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
+
+        if (!PlaceAutocompleteElement) {
+          setMapsError('Google Place Autocomplete is not available.');
+          return;
+        }
+
+        if (!pickupContainerRef.current || !dumpContainerRef.current) return;
+
+        pickupContainerRef.current.innerHTML = '';
+        dumpContainerRef.current.innerHTML = '';
+
+        const pickupElement = new PlaceAutocompleteElement({
+          componentRestrictions: { country: ['us'] }
+        });
+
+        const dumpElement = new PlaceAutocompleteElement({
+          componentRestrictions: { country: ['us'] }
+        });
+
+        pickupElement.setAttribute('placeholder', 'Start typing pickup address');
+        dumpElement.setAttribute('placeholder', 'Start typing dump address');
+
+        pickupElement.classList.add('place-autocomplete');
+        dumpElement.classList.add('place-autocomplete');
+
+        pickupElement.addEventListener('gmp-select', async event => {
+          const placePrediction = event.placePrediction;
+          const place = placePrediction.toPlace();
+
+          await place.fetchFields({
+            fields: ['formattedAddress', 'displayName']
+          });
+
+          setField('pickup', place.formattedAddress || place.displayName || '');
+        });
+
+        dumpElement.addEventListener('gmp-select', async event => {
+          const placePrediction = event.placePrediction;
+          const place = placePrediction.toPlace();
+
+          await place.fetchFields({
+            fields: ['formattedAddress', 'displayName']
+          });
+
+          setField('dump', place.formattedAddress || place.displayName || '');
+        });
+
+        pickupContainerRef.current.appendChild(pickupElement);
+        dumpContainerRef.current.appendChild(dumpElement);
+      } catch (err) {
+        setMapsError('Google address autocomplete could not be started.');
+      }
     }
-    if (!pickupRef.current || !dumpRef.current) return;
 
-    const options = {
-      fields: ['formatted_address', 'name'],
-      componentRestrictions: { country: 'us' }
-    };
-
-    pickupAutoRef.current = new window.google.maps.places.Autocomplete(pickupRef.current, options);
-    dumpAutoRef.current = new window.google.maps.places.Autocomplete(dumpRef.current, options);
-
-    pickupAutoRef.current.addListener('place_changed', () => {
-      const place = pickupAutoRef.current.getPlace();
-      setField('pickup', place.formatted_address || place.name || pickupRef.current.value);
-    });
-
-    dumpAutoRef.current.addListener('place_changed', () => {
-      const place = dumpAutoRef.current.getPlace();
-      setField('dump', place.formatted_address || place.name || dumpRef.current.value);
-    });
+    setupAutocomplete();
   }, [mapsReady]);
 
   function setField(name, value) {
@@ -163,7 +202,7 @@ export default function Home() {
     <>
       {googleKey && (
         <Script
-          src={`https://maps.googleapis.com/maps/api/js?key=${googleKey}&libraries=places&callback=Function.prototype`}
+          src={`https://maps.googleapis.com/maps/api/js?key=${googleKey}&libraries=places&loading=async`}
           strategy="afterInteractive"
           onLoad={() => setMapsReady(true)}
           onError={() => setMapsError('Google Maps script failed to load.')}
@@ -190,93 +229,138 @@ export default function Home() {
               <h2 className="sectionTitle">Quote Inputs</h2>
 
               <label>Pickup Address</label>
-              <input
-                ref={pickupRef}
-                value={form.pickup}
-                onChange={e => setField('pickup', e.target.value)}
-                placeholder="Start typing pickup address"
-                autoComplete="off"
-                required
-              />
+              <div ref={pickupContainerRef} className="autocompleteBox" />
+              {form.pickup && <div className="selectedAddress">{form.pickup}</div>}
 
               <label>Dump Address</label>
-              <input
-                ref={dumpRef}
-                value={form.dump}
-                onChange={e => setField('dump', e.target.value)}
-                placeholder="Start typing dump address"
-                autoComplete="off"
-                required
-              />
+              <div ref={dumpContainerRef} className="autocompleteBox" />
+              {form.dump && <div className="selectedAddress">{form.dump}</div>}
 
               <div className="row">
                 <div>
                   <label>Start Time</label>
-                  <input type="time" value={form.startTime} onChange={e => setField('startTime', e.target.value)} />
+                  <input
+                    type="time"
+                    value={form.startTime}
+                    onChange={e => setField('startTime', e.target.value)}
+                  />
                 </div>
                 <div>
                   <label>No Dumps After</label>
-                  <input type="time" value={form.cutoffTime} onChange={e => setField('cutoffTime', e.target.value)} />
+                  <input
+                    type="time"
+                    value={form.cutoffTime}
+                    onChange={e => setField('cutoffTime', e.target.value)}
+                  />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <label>Hourly Truck Rate</label>
-                  <input type="number" value={form.hourlyRate} onChange={e => setField('hourlyRate', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    value={form.hourlyRate}
+                    onChange={e => setField('hourlyRate', Number(e.target.value))}
+                  />
                 </div>
                 <div>
                   <label>Fuel $ / Gal</label>
-                  <input type="number" step="0.01" value={form.fuelPrice} onChange={e => setField('fuelPrice', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.fuelPrice}
+                    onChange={e => setField('fuelPrice', Number(e.target.value))}
+                  />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <label>Markup %</label>
-                  <input type="number" value={form.markupPercent} onChange={e => setField('markupPercent', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    value={form.markupPercent}
+                    onChange={e => setField('markupPercent', Number(e.target.value))}
+                  />
                 </div>
                 <div>
                   <label>Manual Tolls $</label>
-                  <input type="number" step="0.01" value={form.tollsManual} onChange={e => setField('tollsManual', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.tollsManual}
+                    onChange={e => setField('tollsManual', Number(e.target.value))}
+                  />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <label>Load Min</label>
-                  <input type="number" value={form.loadMinutes} onChange={e => setField('loadMinutes', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    value={form.loadMinutes}
+                    onChange={e => setField('loadMinutes', Number(e.target.value))}
+                  />
                 </div>
                 <div>
                   <label>Dump Min</label>
-                  <input type="number" value={form.dumpMinutes} onChange={e => setField('dumpMinutes', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    value={form.dumpMinutes}
+                    onChange={e => setField('dumpMinutes', Number(e.target.value))}
+                  />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <label>Loaded Slowdown</label>
-                  <input type="number" step="0.01" value={form.loadedMultiplier} onChange={e => setField('loadedMultiplier', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.loadedMultiplier}
+                    onChange={e => setField('loadedMultiplier', Number(e.target.value))}
+                  />
                 </div>
                 <div>
                   <label>Empty Slowdown</label>
-                  <input type="number" step="0.01" value={form.emptyMultiplier} onChange={e => setField('emptyMultiplier', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={form.emptyMultiplier}
+                    onChange={e => setField('emptyMultiplier', Number(e.target.value))}
+                  />
                 </div>
               </div>
 
               <div className="row">
                 <div>
                   <label>MPG</label>
-                  <input type="number" step="0.1" value={form.mpg} onChange={e => setField('mpg', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={form.mpg}
+                    onChange={e => setField('mpg', Number(e.target.value))}
+                  />
                 </div>
                 <div>
                   <label>Tons / Load</label>
-                  <input type="number" value={form.tonsPerLoad} onChange={e => setField('tonsPerLoad', Number(e.target.value))} />
+                  <input
+                    type="number"
+                    value={form.tonsPerLoad}
+                    onChange={e => setField('tonsPerLoad', Number(e.target.value))}
+                  />
                 </div>
               </div>
 
               <label>Yards / Load</label>
-              <input type="number" value={form.yardsPerLoad} onChange={e => setField('yardsPerLoad', Number(e.target.value))} />
+              <input
+                type="number"
+                value={form.yardsPerLoad}
+                onChange={e => setField('yardsPerLoad', Number(e.target.value))}
+              />
 
               <button type="submit" disabled={loading}>
                 {loading ? 'Calculating...' : 'Calculate Quote'}
@@ -292,7 +376,11 @@ export default function Home() {
             <section className="card">
               <h2 className="sectionTitle">Results</h2>
 
-              {!result && <p className="small">Enter a pickup and dump address, then calculate.</p>}
+              {!result && (
+                <p className="small">
+                  Enter a pickup and dump address, then calculate.
+                </p>
+              )}
 
               {result && (
                 <>

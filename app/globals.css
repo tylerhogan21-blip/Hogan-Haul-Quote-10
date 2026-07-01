@@ -233,3 +233,35 @@ button:disabled {
     height: 300px;
   }
 }
+
+.autocompleteBox {
+  width: 100%;
+}
+
+.place-autocomplete {
+  display: block;
+  width: 100%;
+}
+
+.selectedAddress {
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+gmp-place-autocomplete {
+  width: 100%;
+}
+
+gmp-place-autocomplete input {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 16px;
+}
