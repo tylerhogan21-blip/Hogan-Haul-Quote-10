@@ -202,7 +202,7 @@ export default function Home() {
     <>
       {googleKey && (
         <Script
-          src={`src={`https://maps.googleapis.com/maps/api/js?key=${googleKey}&v=beta&libraries=places&loading=async`}
+          src={`https://maps.googleapis.com/maps/api/js?key=${googleKey}&v=beta&libraries=places&loading=async`}
           strategy="afterInteractive"
           onLoad={() => setMapsReady(true)}
           onError={() => setMapsError('Google Maps script failed to load.')}
