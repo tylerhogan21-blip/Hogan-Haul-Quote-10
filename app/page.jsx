@@ -222,7 +222,6 @@ export default function Home() {
             </div>
           )}
 
-          {mapsError && <div className="warning">{mapsError}</div>}
 
           <div className="grid">
             <form className="card" onSubmit={calculate}>
