@@ -141,10 +141,10 @@ export default function Home() {
     setForm(prev => {
       const next = { ...prev, [name]: value };
 
-      if (name === 'jobsiteAddress') {
-        if (prev.importExport === 'import') next.dump = value;
-        if (prev.importExport === 'export') next.pickup = value;
-      }
+      if (name === 'jobsiteAddress' && prev.importExport) {
+  if (prev.importExport === 'import' && !prev.dump) next.dump = value;
+  if (prev.importExport === 'export' && !prev.pickup) next.pickup = value;
+}
 
       return next;
     });
@@ -339,7 +339,7 @@ export default function Home() {
                 value={form.pickup}
                 onChange={e => setField('pickup', e.target.value)}
                 required
-                autoComplete="off"
+                autoComplete="new-password"
                 placeholder="Enter pickup address"
               />
 
