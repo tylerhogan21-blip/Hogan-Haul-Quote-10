@@ -68,24 +68,6 @@ function parseGoogleDuration(duration) {
   return 0;
 }
 
-function parseMoneyObject(price) {
-  if (!price) return 0;
-
-  const units = Number(price.units || 0);
-  const nanos = Number(price.nanos || 0) / 1_000_000_000;
-  const value = units + nanos;
-
-  return Number.isFinite(value) ? value : 0;
-}
-
-function parseTollInfo(route) {
-  const prices = route?.travelAdvisory?.tollInfo?.estimatedPrice || [];
-
-  if (!Array.isArray(prices) || prices.length === 0) return 0;
-
-  return prices.reduce((sum, price) => sum + parseMoneyObject(price), 0);
-}
-
 async function getRoute(origin, destination, apiKey) {
   const body = {
     origin: { address: origin },
@@ -94,13 +76,7 @@ async function getRoute(origin, destination, apiKey) {
     routingPreference: 'TRAFFIC_AWARE',
     computeAlternativeRoutes: false,
     languageCode: 'en-US',
-    units: 'IMPERIAL',
-    extraComputations: ['TOLLS'],
-    routeModifiers: {
-      vehicleInfo: {
-        emissionType: 'GASOLINE'
-      }
-    }
+    units: 'IMPERIAL'
   };
 
   const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
@@ -108,8 +84,7 @@ async function getRoute(origin, destination, apiKey) {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask':
-        'routes.duration,routes.distanceMeters,routes.travelAdvisory.tollInfo'
+      'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters'
     },
     body: JSON.stringify(body)
   });
@@ -134,7 +109,7 @@ async function getRoute(origin, destination, apiKey) {
   return {
     minutes: parseGoogleDuration(route.duration) / 60,
     miles: Number(route.distanceMeters || 0) / 1609.344,
-    toll: parseTollInfo(route)
+    toll: 0
   };
 }
 
@@ -229,10 +204,7 @@ export async function POST(req) {
     const haulMarkup = toNumber(input.haulMarkup, 0);
     const materialFee = toNumber(input.materialFee, 0);
     const materialMarkup = toNumber(input.materialMarkup, 0);
-    const targetHourly = toNumber(
-      input.targetHourly,
-      DEFAULT_TARGET_TRUCK_RATE_PER_HOUR
-    );
+    const targetHourly = toNumber(input.targetHourly, DEFAULT_TARGET_TRUCK_RATE_PER_HOUR);
 
     const loadedAdjusted = loaded.minutes * loadedMultiplier;
     const returnAdjusted = ret.minutes * emptyMultiplier;
@@ -262,7 +234,7 @@ export async function POST(req) {
     });
 
     const fuelCostPerCycle = mpg > 0 ? (roundTripMiles / mpg) * fuelPrice : 0;
-    const tollsPerCycleTotal = loaded.toll + ret.toll;
+    const tollsPerCycleTotal = 0;
 
     const fuelPerSelectedUnit = costPerSelectedUnit(
       fuelCostPerCycle,
@@ -272,13 +244,7 @@ export async function POST(req) {
       cycleMinutes
     );
 
-    const tollsPerSelectedUnit = costPerSelectedUnit(
-      tollsPerCycleTotal,
-      input.unit,
-      tonsPerLoad,
-      yardsPerLoad,
-      cycleMinutes
-    );
+    const tollsPerSelectedUnit = 0;
 
     const haulRate = baseHaulRate + fuelPerSelectedUnit + tollsPerSelectedUnit;
     const billingHaulRate = haulRate + haulMarkup;
@@ -335,7 +301,7 @@ export async function POST(req) {
       taxAmount,
       customerPrice,
       note:
-        'Haul Rate is based on target truck earnings per hour, loads possible inside H.O.P., selected unit, fuel, and tolls.'
+        'Haul Rate is based on hourly rate, loads possible inside H.O.P., selected unit, fuel, and current truck slowdown factors. Tolls are temporarily disabled while Routes API permissions are verified.'
     });
   } catch (err) {
     return NextResponse.json(
