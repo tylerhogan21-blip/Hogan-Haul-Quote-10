@@ -229,23 +229,23 @@ export default function Home() {
     }
   }
 
-  const mapUrl =
-    googleKey && form.pickup && form.dump
-      ? `https://www.google.com/maps/embed/v1/directions?key=${googleKey}&origin=${encodeURIComponent(
-          form.pickup
-        )}&destination=${encodeURIComponent(form.dump)}&mode=driving`
-      : '';
+  const mapUrl = googleKey && form.pickup && form.dump
+  ? 'https://www.google.com/maps/embed/v1/directions?key=' + googleKey +
+    '&origin=' + encodeURIComponent(form.pickup) +
+    '&destination=' + encodeURIComponent(form.dump) +
+    '&mode=driving'
+  : '';
 
-  const customerText = useMemo(() => {
-    if (!result) return '';
+const customerText = useMemo(() => {
+  if (!result) return '';
 
-    return [
-      `Thanks for reaching out.`,
-      `The price${form.jobName ? ` for ${form.jobName}` : ''} is ${money(result.customerPrice)} ${unitLabel(form.unit)}.`,
-      form.taxApplicable === 'yes' ? `Tax included.` : null,
-      `Thank you for the opportunity.`
-    ].filter(Boolean).join(' ');
-  }, [form, result]);
+  return [
+    `Thanks for reaching out.`,
+    `The price${form.jobName ? ` for ${form.jobName}` : ''} is ${money(result.customerPrice)}.`,
+    form.taxApplicable === 'yes' ? 'Tax included.' : null,
+    `Thank you for the opportunity.`
+  ].filter(Boolean).join(' ');
+}, [form, result]);
 
   const internalText = useMemo(() => {
     if (!result) return '';
@@ -349,7 +349,7 @@ export default function Home() {
                 value={form.dump}
                 onChange={e => setField('dump', e.target.value)}
                 required
-                autoComplete="off"
+                autoComplete="new-password"
                 placeholder="Enter dump address"
               />
 
@@ -504,7 +504,7 @@ export default function Home() {
               {mapUrl && (
                 <div className="mapCard">
                   <h3>Route Map</h3>
-                  <iframe title="Route Map" src={mapUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+                  <iframe key={mapUrl} title="Route Map" src={mapUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
                 </div>
               )}
 
